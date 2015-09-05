@@ -5,7 +5,7 @@ import (
 )
 
 func TestNewTxn(t *testing.T) {
-	expectedSize := TRANSACTION_SIZE
+	expectedSize := BITCOIN_TRANSACTION_SIZE
 	expectedTime := 60.0
 
 	txn := newTxn(expectedTime)

@@ -58,8 +58,8 @@ func (lss *LoadSpikeSimulation) simulateMining() {
 		cumulativeTime += drawFromPoisson(BITCOIN_BLOCK_RATE)
 		// create new transactions for this window
 		firstTxnSecs = lss.simulateTxns(firstTxnSecs, cumulativeTime)
-		// consume transactions to be recorded in block
-		lss.txnCount += lss.createBlock(cumulativeTime)
+		// consume as many transactions as possible into the next block
+		lss.createBlock(cumulativeTime)
 	}
 }
 
@@ -76,7 +76,7 @@ func (lss *LoadSpikeSimulation) simulateTxns(nextTxnSecs, miningEndTime float64)
 	}
 }
 
-func (lss *LoadSpikeSimulation) createBlock(blockTimestamp float64) (numTxnsInBlock int64) {
+func (lss *LoadSpikeSimulation) createBlock(blockTimestamp float64) {
 	txnPtr := lss.txnQ.popTxn()
 	if txnPtr == nil {
 		return
@@ -85,7 +85,6 @@ func (lss *LoadSpikeSimulation) createBlock(blockTimestamp float64) (numTxnsInBl
 	remainingBlockSize := int64(1024 * 1024)
 	for remainingBlockSize >= txnPtr.size {
 		remainingBlockSize -= txnPtr.size
-		numTxnsInBlock++
 
 		// time from transaction creation to being recorded in this block
 		age := blockTimestamp - txnPtr.time
@@ -112,8 +111,9 @@ func (lss *LoadSpikeSimulation) recordAgeInBuckets(age float64) {
 		b = 0
 	}
 
-	// increment bucket for age
+	// increment bucket for age and total txn count
 	lss.buckets[b]++
+	lss.txnCount++
 
 	// update used bucket range
 	if lss.largestBucket < b {
