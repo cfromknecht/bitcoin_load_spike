@@ -1,0 +1,6 @@
+# vim caches
+*.sw*
+
+output/
+
+main.go
