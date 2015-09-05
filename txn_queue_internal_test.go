@@ -14,11 +14,11 @@ func TestNewTxn(t *testing.T) {
 	if txn.nextPtr != nil {
 		t.Error("Expected nextPtr to be nil, got", txn.nextPtr)
 	}
-	if txn.size != expectedSize {
-		t.Error("Expected size", expectedSize, "got", txn.size)
+	if txn.Size != expectedSize {
+		t.Error("Expected size", expectedSize, "got", txn.Size)
 	}
-	if txn.time != expectedTime {
-		t.Error("Expected time", expectedTime, "got", txn.time)
+	if txn.Time != expectedTime {
+		t.Error("Expected time", expectedTime, "got", txn.Time)
 	}
 }
 
@@ -49,8 +49,8 @@ func TestPushTxn(t *testing.T) {
 	currentPtr := tq.headPtr
 	for i := 1; i <= expectedQueueLength; i++ {
 		// check that txns are ordered properly
-		if currentPtr.time != float64(i) {
-			t.Error("Expected txn in queue to have time", float64(i), ", got", currentPtr.time)
+		if currentPtr.Time != float64(i) {
+			t.Error("Expected txn in queue to have time", float64(i), ", got", currentPtr.Time)
 		}
 		// increment count and advance current pointer
 		queueLength++
@@ -78,8 +78,8 @@ func TestPopTxn(t *testing.T) {
 		txnPtr := tq.popTxn()
 		// check that transactions are popped in reverse order
 		expectedTime := float64(expectedQueueLength - i + 1)
-		if txnPtr.time != expectedTime {
-			t.Error("Expected popped txn to have time", expectedTime, ", got", txnPtr.time)
+		if txnPtr.Time != expectedTime {
+			t.Error("Expected popped txn to have time", expectedTime, ", got", txnPtr.Time)
 		}
 	}
 
@@ -89,5 +89,14 @@ func TestPopTxn(t *testing.T) {
 	}
 	if tq.tailPtr != nil {
 		t.Error("Expected tailPtr to be nil, got", tq.tailPtr)
+	}
+}
+
+func TestPopTxnEmpty(t *testing.T) {
+	tq := newTxnQueue()
+	txn := tq.popTxn()
+
+	if txn != nil {
+		t.Error("Empty queue should return nil on pop")
 	}
 }

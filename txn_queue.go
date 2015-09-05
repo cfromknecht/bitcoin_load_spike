@@ -7,8 +7,8 @@ const TRANSACTION_SIZE int64 = 250 // 250 bytes
  */
 type txn struct {
 	nextPtr *txn
-	size    int64 // static for now, added to support dynamic sizing in the future
-	time    float64
+	Size    int64 // static for now, added to support dynamic sizing in the future
+	Time    float64
 }
 
 /**
