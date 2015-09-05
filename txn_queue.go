@@ -64,3 +64,19 @@ func (tq *txnQueue) popTxn() *txn {
 		return tPtr
 	}
 }
+
+/**
+ * Removes all `txn`s from the `txnQueue`
+ */
+func (tq *txnQueue) clear() {
+	// remove references between current transactions
+	currentTxnPtr := tq.headPtr
+	for currentTxnPtr != nil {
+		nextPtr := currentTxnPtr.nextPtr
+		currentTxnPtr.nextPtr = nil
+		currentTxnPtr = nextPtr
+	}
+	// remove references to head and tail
+	tq.headPtr = nil
+	tq.tailPtr = nil
+}

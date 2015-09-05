@@ -34,15 +34,10 @@ func TestNewTxnQueue(t *testing.T) {
 	}
 }
 
-func TestPushTxn(t *testing.T) {
+func TestTxnQueuePush(t *testing.T) {
 	expectedQueueLength := 10
 	tq := newTxnQueue()
-
-	// push a couple txns on to the queue
-	for i := 1; i <= expectedQueueLength; i++ {
-		txnPtr := newTxn(float64(i))
-		tq.pushTxn(&txnPtr)
-	}
+	tq.addNTxns(expectedQueueLength)
 
 	// iterate through list and count number of txns
 	queueLength := 0
@@ -64,19 +59,15 @@ func TestPushTxn(t *testing.T) {
 	}
 }
 
-func TestPopTxn(t *testing.T) {
+func TestTxnQueuePop(t *testing.T) {
 	expectedQueueLength := 10
 	tq := newTxnQueue()
-
-	// push a couple txns to the queue
-	for i := 1; i <= expectedQueueLength; i++ {
-		txnPtr := newTxn(float64(i))
-		tq.pushTxn(&txnPtr)
-	}
+	tq.addNTxns(expectedQueueLength)
 
 	// check that length of queue decreases with each pop
 	for i := expectedQueueLength; i >= 1; i-- {
 		txnPtr := tq.popTxn()
+
 		// check that transactions are popped in reverse order
 		expectedTime := float64(expectedQueueLength - i + 1)
 		if txnPtr.time != expectedTime {
@@ -93,11 +84,32 @@ func TestPopTxn(t *testing.T) {
 	}
 }
 
-func TestPopTxnEmpty(t *testing.T) {
+func TestTxnQueuePopEmpty(t *testing.T) {
 	tq := newTxnQueue()
 	txn := tq.popTxn()
 
 	if txn != nil {
 		t.Error("Empty queue should return nil on pop")
+	}
+}
+
+func TestTxnQueueClear(t *testing.T) {
+	tq := newTxnQueue()
+	tq.addNTxns(10)
+
+	tq.clear()
+
+	if tq.headPtr != nil {
+		t.Error("Expected headPtr to be nil, got", tq.headPtr)
+	}
+	if tq.tailPtr != nil {
+		t.Error("Expected tailPtr to be nil, got", tq.tailPtr)
+	}
+}
+
+func (tq *txnQueue) addNTxns(n int) {
+	for i := 1; i <= n; i++ {
+		txnPtr := newTxn(float64(i))
+		tq.pushTxn(&txnPtr)
 	}
 }
