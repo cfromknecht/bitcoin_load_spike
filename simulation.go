@@ -2,9 +2,19 @@ package bitcoin_load_spike
 
 import (
 	"fmt"
+	"math"
 )
 
-const BITCOIN_BLOCK_RATE = 1.0 / 600.0
+const DEFAULT_TPS = 1.0
+const DEFAULT_NB = 1000
+const DEFAULT_NS = 100
+
+const NEGATIVE_ORDERS = 1
+const POSITIVE_ORDERS = 10
+const NUM_BUCKETS_PER_ORDER = 1000
+const NUM_BUCKETS = (NUM_BUCKETS_PER_ORDER * (POSITIVE_ORDERS + NEGATIVE_ORDERS))
+
+const BITCOIN_BLOCK_RATE = 1.0 / 600.0 // 1 block every 10 minutes
 
 var buckets = make([]int64, NUM_BUCKETS)
 var smallestBucket = int64(NUM_BUCKETS)
@@ -17,7 +27,7 @@ func SimulateLoadSpikes(txnsPerSec float64, numBlocks, numSimulations int64) {
 		divisor = 1
 	}
 
-	for i = 0; i < numSimulations; i++ {
+	for i := int64(0); i < numSimulations; i++ {
 		simulateMining(txnsPerSec, numBlocks)
 
 		if i%divisor == 0 {
@@ -51,33 +61,35 @@ func simulateTxns(nextTxnSecs, miningEndTime, txnsPerSec float64, tqPtr *txnQueu
 		}
 
 		txnPtr := newTxn(nextTxnSecs)
-		tqPtr.pushTxn(txnPtr)
+		tqPtr.pushTxn(&txnPtr)
 
 		nextTxnSecs += drawFromPoisson(txnsPerSec)
 	}
 }
 
 func createBlock(blockTimestamp float64, tqPtr *txnQueue) (numTxns int64) {
-	t := tqPtr.popTxn()
-	if t == nil {
+	txnPtr := tqPtr.popTxn()
+	if txnPtr == nil {
 		return
 	}
 
 	remainingBlockSize := int64(1024 * 1024)
-	for remainingBlockSize >= t.size {
-		remainingBlockSize -= t.size
+	for remainingBlockSize >= txnPtr.size {
+		remainingBlockSize -= txnPtr.size
 		numTxns++
 
-		age := blockTimestamp - t.time
-		logAge := math.Log10(age)
+		age := blockTimestamp - txnPtr.time
+		math.Log10(age)
 		// TODO(@cfromknecht) add to bucket
 
-		if t.next == nil {
+		if txnPtr.nextPtr == nil {
 			return
 		}
 
-		t = tqPtr.popTxn()
+		txnPtr = tqPtr.popTxn()
 	}
+
+	return
 }
 
 func outputResults() {
