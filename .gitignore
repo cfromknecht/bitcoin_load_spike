@@ -28,4 +28,4 @@ _testmain.go
 
 # Project specific files
 data/load-spike-*.dat
-
+plots/load-spike-*

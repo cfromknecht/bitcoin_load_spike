@@ -134,7 +134,7 @@ func (lss *LoadSpikeSimulation) outputResults() {
 		bucketCount := float64(count)
 		cumulativeTotal += bucketCount
 
-		fileContents += fmt.Sprintf("%d %f %f %f\n",
+		fileContents += fmt.Sprintf("%d | %f | %f | %f\n",
 			i,
 			math.Pow(10.0, float64(i-(NEGATIVE_ORDERS*NUM_BUCKETS_PER_ORDER))/float64(NUM_BUCKETS_PER_ORDER)),
 			bucketCount/txnCountFloat,
