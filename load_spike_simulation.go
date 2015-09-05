@@ -6,17 +6,6 @@ import (
 	"math"
 )
 
-const DEFAULT_TPS = 1.0
-const DEFAULT_NB = 1000
-const DEFAULT_NS = 100
-
-const NEGATIVE_ORDERS = 1
-const POSITIVE_ORDERS = 10
-const NUM_BUCKETS_PER_ORDER = 1000
-const NUM_BUCKETS = (NUM_BUCKETS_PER_ORDER * (POSITIVE_ORDERS + NEGATIVE_ORDERS))
-
-const BITCOIN_BLOCK_RATE = 1.0 / 600.0 // 1 block every 10 minutes
-
 type LoadSpikeSimulation struct {
 	// simulation parameters
 	txnsPerSec     float64

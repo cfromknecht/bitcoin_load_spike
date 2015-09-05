@@ -1,7 +1,5 @@
 package bitcoin_load_spike
 
-const TRANSACTION_SIZE int64 = 250 // 250 bytes
-
 /**
  * Record for storing a linked list of transactions
  */
@@ -15,7 +13,7 @@ type txn struct {
  * Creates a new `txn` at a specified `time`
  */
 func newTxn(time float64) txn {
-	return txn{nil, TRANSACTION_SIZE, time}
+	return txn{nil, BITCOIN_TRANSACTION_SIZE, time}
 }
 
 /**

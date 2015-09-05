@@ -6,9 +6,9 @@ import (
 )
 
 func parseFlags() (txnsPerSec *float64, numBlocks, numSimulations *int64) {
-	txnsPerSec = flag.Float64("tps", bls.DEFAULT_TPS, "transactions per second")
-	numBlocks = flag.Int64("nb", bls.DEFAULT_NB, "number of blocks")
-	numSimulations = flag.Int64("ns", bls.DEFAULT_NS, "number of simulations")
+	txnsPerSec = flag.Float64("tps", bls.DEFAULT_TXNS_PER_SEC, "transactions per second")
+	numBlocks = flag.Int64("nb", bls.DEFAULT_NUM_BLOCKS, "number of blocks")
+	numSimulations = flag.Int64("ns", bls.DEFAULT_NUM_SIMULATIONS, "number of simulations")
 
 	flag.Parse()
 
