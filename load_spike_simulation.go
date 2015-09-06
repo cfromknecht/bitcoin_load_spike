@@ -33,6 +33,9 @@ func NewLoadSpikeSimulation(tps float64, nb, ns int64) *LoadSpikeSimulation {
 }
 
 func (lss *LoadSpikeSimulation) Run() {
+	fmt.Println("[LoadSpikeSimulation] starting simulation with tps:",
+		lss.txnsPerSec, "nb:", lss.numBlocks, "ns:", lss.numSimulations)
+
 	divisor := lss.numSimulations / 100
 	if divisor == 0 {
 		divisor = 1
@@ -96,8 +99,6 @@ func (lss *LoadSpikeSimulation) createBlock(blockTimestamp float64) {
 
 		txnPtr = lss.txnQ.popTxn()
 	}
-
-	return
 }
 
 func (lss *LoadSpikeSimulation) recordAgeInBuckets(age float64) {
