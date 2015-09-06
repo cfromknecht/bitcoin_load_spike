@@ -41,8 +41,8 @@ def parse_args(args):
 
 
 def generate_spike_plots(datadir, plotdir):
-    times, datasets = parse_spike_data(datadir)
-    plot_spike_data(plotdir, times, datasets)
+    datasets = parse_spike_data(datadir)
+    plot_spike_data(plotdir, datasets)
 
 
 def parse_spike_data(datadir):
@@ -65,27 +65,27 @@ def parse_spike_data(datadir):
         with file(path, 'r') as f:
             times, freqs, cumulatives = parse_stream(f)
 
+        params = (blocks, sims)
         if fixedparams is None:
             # The only independent variable should be rate, and only
             # freqs/cumulatives should vary dependently:
-            fixedparams = (blocks, sims, times)
+            fixedparams = params
         else:
-            params = (blocks, sims, times)
             if fixedparams != params:
                 warnuser(
                     'Skipping plot {!r} which has params {!r}, expected {!r}.',
                     path, params, fixedparams)
                 continue
 
-        datasets[rate] = (freqs, cumulatives)
+        datasets[rate] = (times, freqs, cumulatives)
 
-    return (times, datasets)
+    return datasets
 
 
-def plot_spike_data(plotdir, times, datasets):
+def plot_spike_data(plotdir, datasets):
     pyplot.figure()
 
-    for rate, (_, cumulatives) in sorted(datasets.items()):
+    for rate, (times, _, cumulatives) in sorted(datasets.items()):
         pyplot.plot(times, cumulatives, label='{}'.format(rate))
 
     plotpath = os.path.join(plotdir, 'load-spike-cumulatives.png')
