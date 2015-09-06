@@ -88,6 +88,8 @@ def plot_spike_data(plotdir, datasets):
     for rate, (times, _, cumulatives) in sorted(datasets.items()):
         pyplot.plot(times, cumulatives, label='{}'.format(rate))
 
+    pyplot.gca().set_xscale('log')
+
     plotpath = os.path.join(plotdir, 'load-spike-cumulatives.png')
     print('Writing plot: {!r}'.format(plotpath))
     pyplot.savefig(plotpath)
