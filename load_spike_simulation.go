@@ -126,7 +126,9 @@ func (lss *LoadSpikeSimulation) recordAgeInBuckets(age float64) {
 }
 
 func (lss *LoadSpikeSimulation) outputResults() {
-	filename := fmt.Sprintf("data/load-spike-%f-%d-%d.dat", lss.txnsPerSec, lss.numBlocks, lss.numSimulations)
+	loadPercentage := lss.txnsPerSec / BITCOIN_MAX_TPS
+
+	filename := fmt.Sprintf("data/load-spike-%f-%d-%d.dat", loadPercentage, lss.numBlocks, lss.numSimulations)
 	fileContents := ""
 
 	cumulativeTotal := float64(0.0)
