@@ -12,8 +12,11 @@ type txn struct {
 /**
  * Creates a new `txn` at a specified `time`
  */
-func newTxn(time float64) txn {
-	return txn{nil, BITCOIN_TRANSACTION_SIZE, time}
+func newTxn(time float64) (txnPtr *txn) {
+	txnPtr = new(txn)
+	txnPtr.size = BITCOIN_TRANSACTION_SIZE
+	txnPtr.time = time
+	return
 }
 
 /**
@@ -34,13 +37,14 @@ func newTxnQueue() txnQueue {
 /**
  * Adds a `txn` to the tail of the `txnQueue`
  */
-func (tq *txnQueue) pushTxn(tPtr *txn) {
+func (tq *txnQueue) pushTxn(txnPtr *txn) {
+	txnPtr.nextPtr = nil
 	if tq.headPtr == nil {
-		tq.headPtr = tPtr
-		tq.tailPtr = tPtr
+		tq.headPtr = txnPtr
+		tq.tailPtr = txnPtr
 	} else {
-		tq.tailPtr.nextPtr = tPtr
-		tq.tailPtr = tPtr
+		tq.tailPtr.nextPtr = txnPtr
+		tq.tailPtr = txnPtr
 	}
 }
 
@@ -51,15 +55,18 @@ func (tq *txnQueue) popTxn() *txn {
 	if tq.headPtr == nil {
 		return nil
 	} else {
-		tPtr := tq.headPtr
+		// Remove head element and advance references
+		txnPtr := tq.headPtr
 		tq.headPtr = tq.headPtr.nextPtr
+		// Remove reference to current head
+		txnPtr.nextPtr = nil
 
-		// remove tail reference if list is empty
+		// Remove tail reference if list is empty
 		if tq.headPtr == nil {
 			tq.tailPtr = nil
 		}
 
-		return tPtr
+		return txnPtr
 	}
 }
 
@@ -67,14 +74,9 @@ func (tq *txnQueue) popTxn() *txn {
  * Removes all `txn`s from the `txnQueue`
  */
 func (tq *txnQueue) clear() {
-	// remove references between current transactions
-	currentTxnPtr := tq.headPtr
+	// Pop all elements from `txnQueue`
+	currentTxnPtr := tq.popTxn()
 	for currentTxnPtr != nil {
-		nextPtr := currentTxnPtr.nextPtr
-		currentTxnPtr.nextPtr = nil
-		currentTxnPtr = nextPtr
+		currentTxnPtr = tq.popTxn()
 	}
-	// remove references to head and tail
-	tq.headPtr = nil
-	tq.tailPtr = nil
 }

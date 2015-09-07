@@ -73,6 +73,9 @@ func TestTxnQueuePop(t *testing.T) {
 		if txnPtr.time != expectedTime {
 			t.Error("Expected popped txn to have time", expectedTime, ", got", txnPtr.time)
 		}
+		if txnPtr.nextPtr != nil {
+			t.Error("Expected nextPtr to be nil, got", txnPtr.nextPtr)
+		}
 	}
 
 	// check that queue is empty again
@@ -110,6 +113,6 @@ func TestTxnQueueClear(t *testing.T) {
 func (tq *txnQueue) addNTxns(n int) {
 	for i := 1; i <= n; i++ {
 		txnPtr := newTxn(float64(i))
-		tq.pushTxn(&txnPtr)
+		tq.pushTxn(txnPtr)
 	}
 }

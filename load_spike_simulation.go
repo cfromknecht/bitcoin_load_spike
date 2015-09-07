@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
+	"math/rand"
+	"time"
 )
 
 type LoadSpikeSimulation struct {
@@ -17,6 +19,7 @@ type LoadSpikeSimulation struct {
 	largestBucket  int64
 	txnCount       int64
 	txnQ           txnQueue
+	cacheQ         txnQueue
 }
 
 func NewLoadSpikeSimulation(tps float64, nb, ns int64) *LoadSpikeSimulation {
@@ -29,12 +32,16 @@ func NewLoadSpikeSimulation(tps float64, nb, ns int64) *LoadSpikeSimulation {
 		largestBucket:  0,
 		txnCount:       0,
 		txnQ:           newTxnQueue(),
+		cacheQ:         newTxnQueue(),
 	}
 }
 
 func (lss *LoadSpikeSimulation) Run() {
 	fmt.Println("[LoadSpikeSimulation] starting simulation with tps:",
 		lss.txnsPerSec, "nb:", lss.numBlocks, "ns:", lss.numSimulations)
+
+	// make sure we have a strong seed
+	rand.Seed(time.Now().UTC().UnixNano())
 
 	divisor := lss.numSimulations / 100
 	if divisor == 0 {
@@ -45,7 +52,7 @@ func (lss *LoadSpikeSimulation) Run() {
 		lss.simulateMining()
 
 		if i%divisor == 0 {
-			fmt.Println("[LoadSpikeSimulation]:", i, "% complete")
+			fmt.Println("[LoadSpikeSimulation]:", i/divisor, "% complete")
 		}
 	}
 
@@ -64,6 +71,13 @@ func (lss *LoadSpikeSimulation) simulateMining() {
 		// consume as many transactions as possible into the next block
 		lss.createBlock(cumulativeTime)
 	}
+
+	// Move all remaining txns to the `cacheQ`
+	currentTxnPtr := lss.txnQ.popTxn()
+	for currentTxnPtr != nil {
+		lss.cacheQ.pushTxn(currentTxnPtr)
+		currentTxnPtr = lss.txnQ.popTxn()
+	}
 }
 
 func (lss *LoadSpikeSimulation) simulateTxns(nextTxnSecs, miningEndTime float64) float64 {
@@ -72,8 +86,15 @@ func (lss *LoadSpikeSimulation) simulateTxns(nextTxnSecs, miningEndTime float64)
 			return nextTxnSecs
 		}
 
-		txnPtr := newTxn(nextTxnSecs)
-		lss.txnQ.pushTxn(&txnPtr)
+		// Try to utilize previously allocated txn
+		txnPtr := lss.cacheQ.popTxn()
+		if txnPtr != nil {
+			txnPtr.time = nextTxnSecs
+		} else {
+			// Otherwise create new txn
+			txnPtr = newTxn(nextTxnSecs)
+		}
+		lss.txnQ.pushTxn(txnPtr)
 
 		nextTxnSecs += drawFromPoisson(lss.txnsPerSec)
 	}
@@ -93,11 +114,14 @@ func (lss *LoadSpikeSimulation) createBlock(blockTimestamp float64) {
 		age := blockTimestamp - txnPtr.time
 		lss.recordAgeInBuckets(age)
 
-		if txnPtr.nextPtr == nil {
+		// Cache this transaction for later
+		lss.cacheQ.pushTxn(txnPtr)
+
+		// Pop and return if queue is empty
+		txnPtr = lss.txnQ.popTxn()
+		if txnPtr == nil {
 			return
 		}
-
-		txnPtr = lss.txnQ.popTxn()
 	}
 }
 

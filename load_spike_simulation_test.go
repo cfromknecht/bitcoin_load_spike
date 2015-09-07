@@ -35,6 +35,9 @@ func TestNewLoadSpikeSimulation(t *testing.T) {
 	if sim.txnQ.headPtr != nil || sim.txnQ.tailPtr != nil {
 		t.Error("Expected txnQ to be empty on initialization")
 	}
+	if sim.cacheQ.headPtr != nil || sim.cacheQ.tailPtr != nil {
+		t.Error("Expected cacheQ to be empty on initialization")
+	}
 }
 
 func TestRecordAgeInBuckets(t *testing.T) {
