@@ -46,16 +46,17 @@ def generate_spike_plots(datadir, plotdir):
 
 
 def parse_spike_data(datadir):
-    fnamergx = re.compile(r'^.*/load-spike-(\d+\.\d+)-(\d+)-(\d+).dat$')
+    fnamergx = re.compile(r'^.*/load-spike-(\d+\.\d+):(\d+\.\d+)-(\d+)-(\d+).cl-dat$')
 
     fixedparams = None
     datasets = {}
 
-    for path in glob.glob('{}/load-spike-*.dat'.format(datadir)):
+    for path in glob.glob('{}/load-spike-*.cl-dat'.format(datadir)):
         m = fnamergx.match(path)
         try:
-            rate, blocks, sims = m.groups()
+            rate, time, blocks, sims = m.groups()
             rate = float(rate)
+            time = float(time)
             blocks = int(blocks)
             sims = int(sims)
         except Exception as e:

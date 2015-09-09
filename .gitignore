@@ -27,5 +27,5 @@ _testmain.go
 *.sw*
 
 # Project specific files
-data/load-spike-*.dat
-plots/load-spike-*
+data/*
+plots/*

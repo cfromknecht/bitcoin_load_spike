@@ -3,60 +3,72 @@ package bitcoin_load_spike
 import (
 	"fmt"
 	"io/ioutil"
-	"math"
 	"math/rand"
 	"time"
 )
 
 type LoadSpikeSimulation struct {
 	// simulation parameters
-	txnsPerSec     float64
-	numBlocks      int64
-	numSimulations int64
+	numBlocks     int64
+	numIterations int64
+	spikeProfile  *SpikeProfile
 	// simulation state
-	buckets        []int64
-	smallestBucket int64
-	largestBucket  int64
-	txnCount       int64
-	txnQ           txnQueue
-	cacheQ         txnQueue
+	txnQ    txnQueue
+	cacheQ  txnQueue
+	loggers []Logger
 }
 
-func NewLoadSpikeSimulation(tps float64, nb, ns int64) *LoadSpikeSimulation {
+func NewLoadSpikeSimulation(nb, ns int64) *LoadSpikeSimulation {
 	return &LoadSpikeSimulation{
-		txnsPerSec:     tps,
-		numBlocks:      nb,
-		numSimulations: ns,
-		buckets:        make([]int64, NUM_BUCKETS),
-		smallestBucket: NUM_BUCKETS,
-		largestBucket:  0,
-		txnCount:       0,
-		txnQ:           newTxnQueue(),
-		cacheQ:         newTxnQueue(),
+		numBlocks:     nb,
+		numIterations: ns,
+		spikeProfile:  nil,
+		txnQ:          newTxnQueue(),
+		cacheQ:        newTxnQueue(),
+		loggers:       []Logger{},
 	}
 }
 
 func (lss *LoadSpikeSimulation) Run() {
-	fmt.Println("[LoadSpikeSimulation] starting simulation with tps:",
-		lss.txnsPerSec, "nb:", lss.numBlocks, "ns:", lss.numSimulations)
+	if lss.spikeProfile == nil {
+		panic("Cannot run LoadSpikeSimulation without a SpikeProfile")
+	}
 
-	// make sure we have a strong seed
+	// Print parameters
+	fmt.Println("[LoadSpikeSimulation]: simulating", lss.numIterations, "iterations with", lss.numBlocks, "blocks each")
+	fmt.Println("[SpikeProfile]:")
+	lss.spikeProfile.PrintProfile()
+
+	// Make sure we have a strong seed
 	rand.Seed(time.Now().UTC().UnixNano())
 
-	divisor := lss.numSimulations / 100
+	divisor := lss.numIterations / 100
 	if divisor == 0 {
 		divisor = 1
 	}
 
-	for i := int64(0); i < lss.numSimulations; i++ {
+	// Run simulation
+	fmt.Print("[Progress]: |")
+	for i := int64(0); i < lss.numIterations; i++ {
 		lss.simulateMining()
-
-		if i%divisor == 0 {
-			fmt.Println("[LoadSpikeSimulation]:", i/divisor, "% complete")
-		}
+		printProgessUpdate(i, divisor)
 	}
+	fmt.Println("|")
 
-	lss.outputResults()
+	lss.OutputResults()
+
+	for _, logger := range lss.loggers {
+		logger.Reset()
+	}
+}
+
+func printProgessUpdate(i, divisor int64) {
+	// Prints `[Progress]: |=========(10)=========(20)======`
+	if i != 0 && i%(10*divisor) == 0 {
+		fmt.Print(fmt.Sprintf("(%d)", i/divisor))
+	} else if i%divisor == 0 {
+		fmt.Print("=")
+	}
 }
 
 func (lss *LoadSpikeSimulation) simulateMining() {
@@ -64,12 +76,13 @@ func (lss *LoadSpikeSimulation) simulateMining() {
 	cumulativeTime := float64(0.0)
 
 	for i := int64(0); i < lss.numBlocks; i++ {
+		percent := float64(i) / float64(lss.numBlocks)
 		// time to mine the next block
 		cumulativeTime += drawFromPoisson(BITCOIN_BLOCK_RATE)
 		// create new transactions for this window
-		firstTxnSecs = lss.simulateTxns(firstTxnSecs, cumulativeTime)
+		firstTxnSecs = lss.simulateTxns(firstTxnSecs, cumulativeTime, percent)
 		// consume as many transactions as possible into the next block
-		lss.createBlock(cumulativeTime)
+		lss.createBlock(cumulativeTime, percent)
 	}
 
 	// Move all remaining txns to the `cacheQ`
@@ -80,7 +93,7 @@ func (lss *LoadSpikeSimulation) simulateMining() {
 	}
 }
 
-func (lss *LoadSpikeSimulation) simulateTxns(nextTxnSecs, miningEndTime float64) float64 {
+func (lss *LoadSpikeSimulation) simulateTxns(nextTxnSecs, miningEndTime float64, percent float64) float64 {
 	for {
 		if miningEndTime < nextTxnSecs {
 			return nextTxnSecs
@@ -96,11 +109,15 @@ func (lss *LoadSpikeSimulation) simulateTxns(nextTxnSecs, miningEndTime float64)
 		}
 		lss.txnQ.pushTxn(txnPtr)
 
-		nextTxnSecs += drawFromPoisson(lss.txnsPerSec)
+		// Calculate TPS from current percentage complete
+		currentLoad := lss.spikeProfile.CurrentLoad(percent)
+		currentTPS := currentLoad * BITCOIN_MAX_TPS
+
+		nextTxnSecs += drawFromPoisson(currentTPS)
 	}
 }
 
-func (lss *LoadSpikeSimulation) createBlock(blockTimestamp float64) {
+func (lss *LoadSpikeSimulation) createBlock(blockTimestamp float64, percent float64) {
 	txnPtr := lss.txnQ.popTxn()
 	if txnPtr == nil {
 		return
@@ -110,9 +127,11 @@ func (lss *LoadSpikeSimulation) createBlock(blockTimestamp float64) {
 	for remainingBlockSize >= txnPtr.size {
 		remainingBlockSize -= txnPtr.size
 
-		// time from transaction creation to being recorded in this block
-		age := blockTimestamp - txnPtr.time
-		lss.recordAgeInBuckets(age)
+		// Log the results
+		for _, logger := range lss.loggers {
+			currentSpikeIndex := lss.spikeProfile.CurrentSpikeIndex(percent)
+			logger.Log(blockTimestamp, txnPtr.time, currentSpikeIndex)
+		}
 
 		// Cache this transaction for later
 		lss.cacheQ.pushTxn(txnPtr)
@@ -125,49 +144,56 @@ func (lss *LoadSpikeSimulation) createBlock(blockTimestamp float64) {
 	}
 }
 
-func (lss *LoadSpikeSimulation) recordAgeInBuckets(age float64) {
-	logAge := math.Log10(age)
-	logAgeBucket := float64(NUM_BUCKETS_PER_ORDER) * logAge
-
-	b := int64(math.Ceil(logAgeBucket))
-	b += NEGATIVE_ORDERS * NUM_BUCKETS_PER_ORDER
-
-	if b < 0 {
-		b = 0
+func (lss *LoadSpikeSimulation) UseSpikeProfile(sp *SpikeProfile) *LoadSpikeSimulation {
+	if sp == nil || !sp.valid() {
+		panic("Cannot add invalid SpikeProfile to LoadSpikeSimulation")
 	}
+	// Add spike profile to simulation
+	lss.spikeProfile = sp
 
-	// increment bucket for age and total txn count
-	lss.buckets[b]++
-	lss.txnCount++
-
-	// update used bucket range
-	if lss.largestBucket < b {
-		lss.largestBucket = b
-	}
-	if lss.smallestBucket > b {
-		lss.smallestBucket = b
-	}
+	return lss
 }
 
-func (lss *LoadSpikeSimulation) outputResults() {
-	loadPercentage := lss.txnsPerSec / BITCOIN_MAX_TPS
-
-	filename := fmt.Sprintf("data/load-spike-%f-%d-%d.dat", loadPercentage, lss.numBlocks, lss.numSimulations)
-	fileContents := ""
-
-	cumulativeTotal := float64(0.0)
-	txnCountFloat := float64(lss.txnCount)
-	for i, count := range lss.buckets[lss.smallestBucket:lss.largestBucket] {
-		bucketCount := float64(count)
-		cumulativeTotal += bucketCount
-
-		fileContents += fmt.Sprintf("%d | %f | %f | %f\n",
-			i,
-			math.Pow(10.0, float64(i-(NEGATIVE_ORDERS*NUM_BUCKETS_PER_ORDER))/float64(NUM_BUCKETS_PER_ORDER)),
-			bucketCount/txnCountFloat,
-			cumulativeTotal/txnCountFloat)
+func (lss *LoadSpikeSimulation) AddCumulativeLogger(prefix string) *LoadSpikeSimulation {
+	if lss.spikeProfile == nil {
+		panic("Cannot add CumulativeLogger without first setting a SpikeProfile")
 	}
 
-	err := ioutil.WriteFile(filename, []byte(fileContents), 0644)
-	check(err)
+	// Create a plot record for each spike
+	numPlots := len(lss.spikeProfile.spikes)
+	plots := []*cumulativePlot{}
+	for i := 0; i < numPlots; i++ {
+		plots = append(plots, newCumulativePlot())
+	}
+
+	// Build logger
+	cLogger := &CumulativeLogger{
+		plots,
+		prefix,
+	}
+
+	// Append logger to loggers
+	lss.loggers = append(lss.loggers, cLogger)
+
+	return lss
+}
+
+func (lss *LoadSpikeSimulation) OutputResults() {
+	// Create output for each logger
+	for _, logger := range lss.loggers {
+		// Create file prefix to dump results
+		filePrefix := logger.FilePrefix()
+
+		// Get each file contents and write to file
+		for i, fileContents := range logger.Outputs() {
+			// Create full filename
+			filename := filePrefix
+			filename += "-" + lss.spikeProfile.spikes[i].String()
+			filename += fmt.Sprintf("-%d-%d", lss.numBlocks, lss.numIterations)
+			filename += "." + logger.FileExtension()
+			// Write file contents to filename
+			err := ioutil.WriteFile(filename, []byte(fileContents), 0644)
+			check(err)
+		}
+	}
 }
