@@ -23,7 +23,7 @@ func main() {
 	bs, nb, ns := parseFlags()
 
 	sp := &bls.SpikeProfile{
-		Spikes: []bls.Spike{
+		[]bls.Spike{
 			bls.Spike{0.0, 1.0},
 		},
 	}
