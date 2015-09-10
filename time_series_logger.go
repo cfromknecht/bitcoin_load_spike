@@ -62,13 +62,11 @@ func (tsl *TimeSeriesLogger) Log(blockTimestamp, txnTimestamp float64, spikeNumb
 	// Extend buckets and counts if necessary
 	if b >= int64(len(tsl.plot.buckets)) {
 		diff := b - int64(len(tsl.plot.buckets)-1)
-
-		// fmt.Print(fmt.Sprintf("<%d>", diff))
-
+		// Extend buckets
 		bucketsExtension := make([]float64, diff)
-		countsExtension := make([]int64, diff)
-
 		tsl.plot.buckets = append(tsl.plot.buckets, bucketsExtension...)
+		// Extend counts
+		countsExtension := make([]int64, diff)
 		tsl.plot.counts = append(tsl.plot.counts, countsExtension...)
 	}
 
