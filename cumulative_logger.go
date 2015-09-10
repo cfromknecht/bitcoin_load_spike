@@ -14,10 +14,10 @@ type cumulativePlot struct {
 
 func newCumulativePlot() *cumulativePlot {
 	return &cumulativePlot{
-		make([]int64, NUM_BUCKETS),
-		NUM_BUCKETS,
-		0,
-		0,
+		buckets:        make([]int64, NUM_BUCKETS),
+		smallestBucket: NUM_BUCKETS,
+		largestBucket:  0,
+		txnCount:       0,
 	}
 }
 
@@ -75,16 +75,15 @@ func (cl *CumulativeLogger) Log(blockTimestamp, txnTimestamp float64, spikeNumbe
 		b = 0
 	}
 	if b >= NUM_BUCKETS {
-		panic("Not enough buckets to records txn confirmation time.")
+		panic("Not enough buckets to record txn confirmation time.")
 	}
 
 	cl.plots[spikeNumber].incrementBucket(b)
 }
 
 func (cl *CumulativeLogger) Outputs() (outputs []string) {
-	outputs = []string{}
 	for i, plot := range cl.plots {
-		fmt.Println("[CumulativePlot]: generating cumulative plot for spike", i)
+		fmt.Println("[CumulativePlot]: generating cumulative plot data for spike", i)
 		outputs = append(outputs, plot.output())
 	}
 	return

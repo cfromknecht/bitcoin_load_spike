@@ -9,35 +9,35 @@ var validSpikeProfileTests = []struct {
 }{
 	{
 		SpikeProfile{
-			[]spike{spike{0, .1}},
+			[]Spike{Spike{0, .1}},
 		},
 		true,
 		"initialization",
 	},
 	{
 		SpikeProfile{
-			[]spike{spike{0, .1}, spike{.2, .1}},
+			[]Spike{Spike{0, .1}, Spike{.2, .1}},
 		},
 		true,
 		"valid spike added",
 	},
 	{
 		SpikeProfile{
-			[]spike{spike{0, .1}, spike{-.6, .1}},
+			[]Spike{Spike{0, .1}, Spike{-.6, .1}},
 		},
 		false,
 		"negative time",
 	},
 	{
 		SpikeProfile{
-			[]spike{spike{0, .1}, spike{.3, -.1}},
+			[]Spike{Spike{0, .1}, Spike{.3, -.1}},
 		},
 		false,
 		"negative load",
 	},
 	{
 		SpikeProfile{
-			[]spike{spike{0, .1}, spike{.5, .1}, spike{.1, .1}},
+			[]Spike{Spike{0, .1}, Spike{.5, .1}, Spike{.1, .1}},
 		},
 		false,
 		"unordered spikes",
@@ -91,10 +91,10 @@ func TestValidLoad(t *testing.T) {
 
 func TestCurrentLoad(t *testing.T) {
 	sp := SpikeProfile{
-		[]spike{
-			spike{0.0, 0.1},
-			spike{0.1, 0.8},
-			spike{0.2, 0.2},
+		[]Spike{
+			Spike{0.0, 0.1},
+			Spike{0.1, 0.8},
+			Spike{0.2, 0.2},
 		},
 	}
 
@@ -120,10 +120,10 @@ func TestCurrentLoad(t *testing.T) {
 
 func TestCurrentIndex(t *testing.T) {
 	sp := SpikeProfile{
-		[]spike{
-			spike{0.0, 0.1},
-			spike{0.1, 0.8},
-			spike{0.2, 0.2},
+		[]Spike{
+			Spike{0.0, 0.1},
+			Spike{0.1, 0.8},
+			Spike{0.2, 0.2},
 		},
 	}
 

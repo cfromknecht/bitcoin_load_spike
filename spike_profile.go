@@ -3,76 +3,65 @@ package bitcoin_load_spike
 import "fmt"
 
 type SpikeProfile struct {
-	spikes []spike
+	Spikes []Spike
 }
 
-func NewSpikeProfile(spikeMap map[float64]float64) *SpikeProfile {
-	sp := new(SpikeProfile)
-	sp.spikes = []spike{}
-
-	for time, load := range spikeMap {
-		sp.spikes = append(sp.spikes, spike{time, load})
-	}
-
-	return sp
+type Spike struct {
+	Time float64
+	Load float64
 }
 
-type spike struct {
-	time float64
-	load float64
-}
-
-func (s spike) String() string {
-	return fmt.Sprintf("%.4f:%.4f", s.load, s.time)
+func (s Spike) String() string {
+	return fmt.Sprintf("%.4f:%.4f", s.Load, s.Time)
 }
 
 func (sp *SpikeProfile) valid() bool {
 	previousTime := 0.0
-	for i, spike := range sp.spikes {
+	for i, spike := range sp.Spikes {
 		// First spike must be at time 0.0
-		if i == 0 && spike.time != 0.0 {
+		if i == 0 && spike.Time != 0 {
 			return false
 		}
 		// Check that all times and loads are valid
-		if !validTime(spike.time) || !validLoad(spike.load) {
+		if !validTime(spike.Time) || !validLoad(spike.Load) {
 			return false
 		}
 		// Check that the times are in order
-		if spike.time < previousTime {
+		if spike.Time < previousTime {
 			return false
 		}
-		previousTime = spike.time
+		previousTime = spike.Time
 	}
 	return true
 }
 
 func (sp SpikeProfile) PrintProfile() {
-	for _, spike := range sp.spikes {
-		fmt.Println(fmt.Sprintf("    %3.f%%: %f", 100*spike.time, spike.load))
+	for _, spike := range sp.Spikes {
+		fmt.Println(fmt.Sprintf("    %3.f%%: %f", 100*spike.Time, spike.Load))
 	}
 }
 
 func (sp SpikeProfile) CurrentLoad(percent float64) float64 {
-	for i, spike := range sp.spikes {
-		if percent == spike.time {
-			return sp.spikes[i].load
-		} else if percent < spike.time {
-			return sp.spikes[i-1].load
+	for i, spike := range sp.Spikes {
+		if percent == spike.Time {
+			return sp.Spikes[i].Load
+		} else if percent < spike.Time {
+			return sp.Spikes[i-1].Load
 		}
 	}
-	lastSpikeIndex := len(sp.spikes) - 1
-	return sp.spikes[lastSpikeIndex].load
+	lastSpikeIndex := len(sp.Spikes) - 1
+	return sp.Spikes[lastSpikeIndex].Load
 }
 
 func (sp SpikeProfile) CurrentSpikeIndex(percent float64) int {
-	for i, spike := range sp.spikes {
-		if percent == spike.time {
+	for i, spike := range sp.Spikes {
+		if percent == spike.Time {
 			return i
-		} else if percent < spike.time {
+		} else if percent < spike.Time {
 			return i - 1
 		}
 	}
-	return len(sp.spikes) - 1
+	return len(sp.Spikes) - 1
 }
 
 func validTime(t float64) bool {

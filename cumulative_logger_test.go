@@ -53,7 +53,7 @@ var logTests = []struct {
 		false,
 	},
 	{
-		10000000000, // Some very high number
+		100000000000000000000, // Some very high number
 		0,
 		0, // Not used, test for panicking instead
 		true,
@@ -66,9 +66,11 @@ func TestLog(t *testing.T) {
 		if test.shouldRecover {
 			defer func() {
 				if r := recover(); r != nil {
-					if r != "Not enough buckets to records txn confirmation time." {
-						t.Error("Expected log to panic if bucket index would cause array out of bounds error")
+					if r != "Not enough buckets to record txn confirmation time." {
+						t.Error("Panic message different from expected, got", r)
 					}
+				} else {
+					t.Error("Expected log to panic if bucket index would cause array out of bounds error")
 				}
 			}()
 		}

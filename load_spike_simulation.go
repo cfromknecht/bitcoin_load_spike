@@ -8,23 +8,21 @@ import (
 )
 
 type LoadSpikeSimulation struct {
-	// simulation parameters
+	// Simulation parameters
 	numBlocks     int64
 	numIterations int64
+	blockSize     float64
 	spikeProfile  *SpikeProfile
-	// simulation state
-	txnQ    txnQueue
-	cacheQ  txnQueue
+	// Logging state
 	loggers []Logger
 }
 
-func NewLoadSpikeSimulation(nb, ns int64) *LoadSpikeSimulation {
+func NewLoadSpikeSimulation(bs float64, nb, ns int64) *LoadSpikeSimulation {
 	return &LoadSpikeSimulation{
 		numBlocks:     nb,
 		numIterations: ns,
+		blockSize:     bs,
 		spikeProfile:  nil,
-		txnQ:          newTxnQueue(),
-		cacheQ:        newTxnQueue(),
 		loggers:       []Logger{},
 	}
 }
@@ -34,21 +32,25 @@ func (lss *LoadSpikeSimulation) Run() {
 		panic("Cannot run LoadSpikeSimulation without a SpikeProfile")
 	}
 
-	// Print parameters
-	fmt.Println("[LoadSpikeSimulation]: simulating", lss.numIterations, "iterations with", lss.numBlocks, "blocks each")
-	fmt.Println("[SpikeProfile]:")
-	lss.spikeProfile.PrintProfile()
-
-	// Make sure we have a strong seed
+	// Make sure to seed our randomness
 	rand.Seed(time.Now().UTC().UnixNano())
 
+	// Print simulation parameters
+	fmt.Println("[LoadSpikeSimulation]")
+	fmt.Println("     iterations:", lss.numIterations)
+	fmt.Println("     blocks/iteration:", lss.numBlocks)
+	fmt.Println("     block size:", lss.blockSize)
+	fmt.Println("[SpikeProfile]")
+	lss.spikeProfile.PrintProfile()
+
+	// Calculate divisor for progress bar
 	divisor := lss.numIterations / 100
 	if divisor == 0 {
 		divisor = 1
 	}
 
 	// Run simulation
-	fmt.Print("[Progress]: |")
+	fmt.Print("[Progress] |")
 	for i := int64(0); i < lss.numIterations; i++ {
 		lss.simulateMining()
 		printProgessUpdate(i, divisor)
@@ -72,76 +74,112 @@ func printProgessUpdate(i, divisor int64) {
 }
 
 func (lss *LoadSpikeSimulation) simulateMining() {
-	firstTxnSecs := float64(0.0)
-	cumulativeTime := float64(0.0)
+	pendingTxnChan := make(chan txn)
+	cachedTxnChan := make(chan txn)
+	blockNumChan := make(chan int64)
 
-	for i := int64(0); i < lss.numBlocks; i++ {
-		percent := float64(i) / float64(lss.numBlocks)
-		// time to mine the next block
-		cumulativeTime += drawFromPoisson(BITCOIN_BLOCK_RATE)
-		// create new transactions for this window
-		firstTxnSecs = lss.simulateTxns(firstTxnSecs, cumulativeTime, percent)
-		// consume as many transactions as possible into the next block
-		lss.createBlock(cumulativeTime, percent)
-	}
-
-	// Move all remaining txns to the `cacheQ`
-	currentTxnPtr := lss.txnQ.popTxn()
-	for currentTxnPtr != nil {
-		lss.cacheQ.pushTxn(currentTxnPtr)
-		currentTxnPtr = lss.txnQ.popTxn()
-	}
+	// Spawn routine to produce transactions
+	go lss.createTxns(pendingTxnChan, cachedTxnChan, blockNumChan)
+	// Consume transactions on main routine
+	lss.createBlocks(pendingTxnChan, cachedTxnChan, blockNumChan)
 }
 
-func (lss *LoadSpikeSimulation) simulateTxns(nextTxnSecs, miningEndTime float64, percent float64) float64 {
+func (lss *LoadSpikeSimulation) createTxns(pendingTxnChan, cachedTxnChan chan txn, blockNumChan chan int64) {
+	// createBlocks waits for channel to close before returning
+	defer func() {
+		close(pendingTxnChan)
+	}()
+
+	txnTimestamp := float64(0)
+
+	// Simulation always starts at 0%
+	currentSpikeIndex := lss.spikeProfile.CurrentSpikeIndex(0)
+	currentLoad := lss.spikeProfile.CurrentLoad(0)
+	currentTPS := currentLoad * BITCOIN_MAX_TPS
+
 	for {
-		if miningEndTime < nextTxnSecs {
-			return nextTxnSecs
+		select {
+		case i := <-blockNumChan:
+			// Starting new iteration
+			if i == 0 {
+				// Time till first txn
+				txnTimestamp := drawFromPoisson(currentTPS)
+				// Broadcast first txn
+				pendingTxnChan <- newTxn(txnTimestamp, currentSpikeIndex)
+			}
+
+			// Use percentage to get current tps (for poisson) and spike index (for logging)
+			percent := float64(i) / float64(lss.numBlocks)
+
+			// Percentage of BITCOIN_MAX_TPS
+			currentLoad := lss.spikeProfile.CurrentLoad(percent)
+			currentTPS = currentLoad * BITCOIN_MAX_TPS
+
+			// Determines which log do eventually record the transaction under
+			currentSpikeIndex = lss.spikeProfile.CurrentSpikeIndex(percent)
+		case txn, ok := <-cachedTxnChan:
+			// Finished mining, simulation is complete
+			if !ok {
+				return
+			}
+
+			// Time till next txn
+			txnTimestamp += drawFromPoisson(currentTPS)
+			// Reuse transaction
+			txn.time = txnTimestamp
+			txn.index = currentSpikeIndex
+			// Broadcast next txn
+			pendingTxnChan <- txn
 		}
-
-		// Try to utilize previously allocated txn
-		txnPtr := lss.cacheQ.popTxn()
-		if txnPtr != nil {
-			txnPtr.time = nextTxnSecs
-		} else {
-			// Otherwise create new txn
-			txnPtr = newTxn(nextTxnSecs)
-		}
-		lss.txnQ.pushTxn(txnPtr)
-
-		// Calculate TPS from current percentage complete
-		currentLoad := lss.spikeProfile.CurrentLoad(percent)
-		currentTPS := currentLoad * BITCOIN_MAX_TPS
-
-		nextTxnSecs += drawFromPoisson(currentTPS)
 	}
 }
 
-func (lss *LoadSpikeSimulation) createBlock(blockTimestamp float64, percent float64) {
-	txnPtr := lss.txnQ.popTxn()
-	if txnPtr == nil {
-		return
-	}
+func (lss *LoadSpikeSimulation) createBlocks(pendingTxnChan, cachedTxnChan chan txn, blockNumChan chan int64) {
+	blockTimestamp := float64(0)
 
-	remainingBlockSize := int64(1024 * 1024)
-	for remainingBlockSize >= txnPtr.size {
-		remainingBlockSize -= txnPtr.size
+	var t txn
+	var usePreviousTxn = false
+	for i := int64(0); i < lss.numBlocks; i++ {
+		blockNumChan <- i
 
-		// Log the results
-		for _, logger := range lss.loggers {
-			currentSpikeIndex := lss.spikeProfile.CurrentSpikeIndex(percent)
-			logger.Log(blockTimestamp, txnPtr.time, currentSpikeIndex)
+		blockTimestamp += drawFromPoisson(BITCOIN_BLOCK_RATE)
+		remainingBlockSize := lss.blockSize
+
+		// Must process `txn` before starting loop if last block was full
+		if usePreviousTxn {
+			remainingBlockSize -= BITCOIN_TRANSACTION_SIZE
+			lss.logAndCacheTxn(txn, cachedTxnChan)
+
+			usePreviousTxn = false
 		}
 
-		// Cache this transaction for later
-		lss.cacheQ.pushTxn(txnPtr)
+		for t = range pendingTxnChan {
+			// If `txn` belongs in next block or doesn't fit in current block, process
+			// later
+			if t.time >= blockTimestamp || remainingBlockSize < BITCOIN_TRANSACTION_SIZE {
+				usePreviousTxn = true
+				break
+			}
 
-		// Pop and return if queue is empty
-		txnPtr = lss.txnQ.popTxn()
-		if txnPtr == nil {
-			return
+			remainingBlockSize -= BITCOIN_TRANSACTION_SIZE
+			lss.logAndCacheTxn(txn, cachedTxnChan)
 		}
 	}
+
+	// Terminates channels and waits for other routine to close the pendingTxnChan
+	// before returning
+	close(blockNumChan)
+	close(cachedTxnChan)
+	<-pendingTxnChan
+}
+
+func (lss *LoadSpikeSimulation) logAndCacheTxn(t txn, cachedTxnChan chan txn) {
+	// Log the txn
+	for _, logger := range lss.loggers {
+		logger.Log(blockTimestamp, t.time, t.index)
+	}
+	// Return txn to other routine
+	cachedTxnChan <- t
 }
 
 func (lss *LoadSpikeSimulation) UseSpikeProfile(sp *SpikeProfile) *LoadSpikeSimulation {
@@ -154,13 +192,27 @@ func (lss *LoadSpikeSimulation) UseSpikeProfile(sp *SpikeProfile) *LoadSpikeSimu
 	return lss
 }
 
+func (lss *LoadSpikeSimulation) AddTimeSeriesLogger(prefix string) *LoadSpikeSimulation {
+	// Create new time series logger
+	tsLogger := &TimeSeriesLogger{
+		plot:          newTimeSeriesPlot(),
+		secsPerBucket: 60.0,
+		filePrefix:    prefix,
+	}
+
+	// Append logger to loggers
+	lss.loggers = append(lss.loggers, tsLogger)
+
+	return lss
+}
+
 func (lss *LoadSpikeSimulation) AddCumulativeLogger(prefix string) *LoadSpikeSimulation {
 	if lss.spikeProfile == nil {
 		panic("Cannot add CumulativeLogger without first setting a SpikeProfile")
 	}
 
 	// Create a plot record for each spike
-	numPlots := len(lss.spikeProfile.spikes)
+	numPlots := len(lss.spikeProfile.Spikes)
 	plots := []*cumulativePlot{}
 	for i := 0; i < numPlots; i++ {
 		plots = append(plots, newCumulativePlot())
@@ -168,8 +220,8 @@ func (lss *LoadSpikeSimulation) AddCumulativeLogger(prefix string) *LoadSpikeSim
 
 	// Build logger
 	cLogger := &CumulativeLogger{
-		plots,
-		prefix,
+		plots:      plots,
+		filePrefix: prefix,
 	}
 
 	// Append logger to loggers
@@ -188,7 +240,7 @@ func (lss *LoadSpikeSimulation) OutputResults() {
 		for i, fileContents := range logger.Outputs() {
 			// Create full filename
 			filename := filePrefix
-			filename += "-" + lss.spikeProfile.spikes[i].String()
+			filename += "-" + lss.spikeProfile.Spikes[i].String()
 			filename += fmt.Sprintf("-%d-%d", lss.numBlocks, lss.numIterations)
 			filename += "." + logger.FileExtension()
 			// Write file contents to filename

@@ -86,10 +86,10 @@ def parse_spike_data(datadir):
 def plot_spike_data(plotdir, datasets):
     pyplot.figure()
 
-    for rate, (times, _, cumulatives) in sorted(datasets.items()):
-        pyplot.plot(times, cumulatives, label='{}'.format(rate))
+    for rate, (times, freqs, _) in sorted(datasets.items()):
+        pyplot.plot(times, freqs, label='{}'.format(rate))
 
-    pyplot.gca().set_xscale('log')
+    pyplot.gca().set_xscale('linear')
 
     plotpath = os.path.join(plotdir, 'load-spike-cumulatives.png')
     print('Writing plot: {!r}'.format(plotpath))
