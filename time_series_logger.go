@@ -55,10 +55,10 @@ func (tsl TimeSeriesLogger) FileExtension() string {
 	return "tsl-dat"
 }
 
-func (tsl *TimeSeriesLogger) Log(blockTimestamp, txnTimestamp float64, spikeNumber int) {
-	age := blockTimestamp - txnTimestamp
+func (tsl *TimeSeriesLogger) Log(blockTimestamp float64, t txn) {
+	age := blockTimestamp - t.time
 
-	b := int64(txnTimestamp / tsl.secsPerBucket)
+	b := int64(t.time / tsl.secsPerBucket)
 	// Extend buckets and counts if necessary
 	if b >= int64(len(tsl.plot.buckets)) {
 		diff := b - int64(len(tsl.plot.buckets)-1)

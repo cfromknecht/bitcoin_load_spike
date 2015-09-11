@@ -54,9 +54,9 @@ def parse_spike_data(datadir):
     for path in glob.glob('{}/load-spike-*.cl-dat'.format(datadir)):
         m = fnamergx.match(path)
         try:
-            rate, time, blocks, sims = m.groups()
-            rate = float(rate)
+            time, rate, blocks, sims = m.groups()
             time = float(time)
+            rate = float(rate)
             blocks = int(blocks)
             sims = int(sims)
         except Exception as e:
@@ -86,10 +86,10 @@ def parse_spike_data(datadir):
 def plot_spike_data(plotdir, datasets):
     pyplot.figure()
 
-    for rate, (times, freqs, _) in sorted(datasets.items()):
-        pyplot.plot(times, freqs, label='{}'.format(rate))
+    for rate, (times, _, cumulatives) in sorted(datasets.items()):
+        pyplot.plot(times, cumulatives, label='{}'.format(rate))
 
-    pyplot.gca().set_xscale('linear')
+    pyplot.gca().set_xscale('log')
 
     plotpath = os.path.join(plotdir, 'load-spike-cumulatives.png')
     print('Writing plot: {!r}'.format(plotpath))

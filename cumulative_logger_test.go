@@ -30,31 +30,31 @@ func TestFileExtension(t *testing.T) {
 
 var logTests = []struct {
 	blockTimestamp float64
-	txnTimestamp   float64
+	t              txn
 	expectedBucket int64
 	shouldRecover  bool
 }{
 	{
 		0.0,
-		0.0,
+		txn{0.0, 0.0},
 		0,
 		false,
 	},
 	{
 		10.0,
-		0.0,
+		txn{0.0, 0.0},
 		2000,
 		false,
 	},
 	{
 		10000.0,
-		0,
+		txn{0.0, 0.0},
 		5000,
 		false,
 	},
 	{
 		100000000000000000000, // Some very high number
-		0,
+		txn{0.0, 0.0},
 		0, // Not used, test for panicking instead
 		true,
 	},
@@ -79,7 +79,7 @@ func TestLog(t *testing.T) {
 			[]*cumulativePlot{newCumulativePlot()},
 			"",
 		}
-		cl.Log(test.blockTimestamp, test.txnTimestamp, 0)
+		cl.Log(test.blockTimestamp, test.t)
 
 		if cl.plots[0].buckets[test.expectedBucket] != 1 {
 			// find actual bucket
@@ -90,7 +90,7 @@ func TestLog(t *testing.T) {
 					break
 				}
 			}
-			t.Error("Expected bucket", test.expectedBucket, "to be incremented for block timestamp", test.blockTimestamp, "and txn timestamp", test.txnTimestamp, ", got", actualBucket)
+			t.Error("Expected bucket", test.expectedBucket, "to be incremented for block timestamp", test.blockTimestamp, "and txn timestamp", test.t.time, ", got", actualBucket)
 		}
 	}
 }
@@ -102,7 +102,7 @@ func TestOutput(t *testing.T) {
 		"",
 	}
 	for i := float64(0); i < 5; i++ {
-		cl.Log(1000.0, i, 0)
+		cl.Log(1000.0, txn{i, 0})
 	}
 
 	output := cl.Outputs()[0]

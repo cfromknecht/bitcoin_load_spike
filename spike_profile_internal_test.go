@@ -59,21 +59,21 @@ func TestValidSpikeProfile(t *testing.T) {
 
 }
 
-func TestValidTime(t *testing.T) {
-	if !validTime(.5) {
+func TestValidPercent(t *testing.T) {
+	if !validPercent(.5) {
 		t.Error("Expected .5 to be a valid time")
 	}
-	if !validTime(0) {
+	if !validPercent(0) {
 		t.Error("Expected 0 to be a valid time")
 	}
-	if !validTime(1) {
-		t.Error("Expected 1 to be a valid time")
+	if validPercent(1) {
+		t.Error("Expected 1 to be an invalid time")
 	}
-	if validTime(-.5) {
-		t.Error("Expected -.5 to be a invalid time")
+	if validPercent(-.5) {
+		t.Error("Expected -.5 to be an invalid time")
 	}
-	if validTime(1.5) {
-		t.Error("Expected 1.5 to be a invalid time")
+	if validPercent(1.5) {
+		t.Error("Expected 1.5 to be an invalid time")
 	}
 }
 
@@ -98,23 +98,23 @@ func TestCurrentLoad(t *testing.T) {
 		},
 	}
 
-	if sp.CurrentLoad(0) != 0.1 {
-		t.Error("Expected current load at 0 to be 0.1, got", sp.CurrentLoad(0))
+	if sp.currentLoad(0) != 0.1 {
+		t.Error("Expected current load at 0 to be 0.1, got", sp.currentLoad(0))
 	}
-	if sp.CurrentLoad(0.05) != 0.1 {
-		t.Error("Expected current load at 0.05 to be 0.1, got", sp.CurrentLoad(0.05))
+	if sp.currentLoad(0.05) != 0.1 {
+		t.Error("Expected current load at 0.05 to be 0.1, got", sp.currentLoad(0.05))
 	}
-	if sp.CurrentLoad(0.1) != 0.8 {
-		t.Error("Expected current load at 0.1 to be 0.8, got", sp.CurrentLoad(0.1))
+	if sp.currentLoad(0.1) != 0.8 {
+		t.Error("Expected current load at 0.1 to be 0.8, got", sp.currentLoad(0.1))
 	}
-	if sp.CurrentLoad(0.15) != 0.8 {
-		t.Error("Expected current load at 0.15 to be 0.8, got", sp.CurrentLoad(0.15))
+	if sp.currentLoad(0.15) != 0.8 {
+		t.Error("Expected current load at 0.15 to be 0.8, got", sp.currentLoad(0.15))
 	}
-	if sp.CurrentLoad(0.2) != 0.2 {
-		t.Error("Expected current load at 0.2 to be 0.2, got", sp.CurrentLoad(0.2))
+	if sp.currentLoad(0.2) != 0.2 {
+		t.Error("Expected current load at 0.2 to be 0.2, got", sp.currentLoad(0.2))
 	}
-	if sp.CurrentLoad(0.5) != 0.2 {
-		t.Error("Expected current load at 0.5 to be 0.2, got", sp.CurrentLoad(0.5))
+	if sp.currentLoad(0.5) != 0.2 {
+		t.Error("Expected current load at 0.5 to be 0.2, got", sp.currentLoad(0.5))
 	}
 }
 
@@ -127,22 +127,22 @@ func TestCurrentIndex(t *testing.T) {
 		},
 	}
 
-	if sp.CurrentSpikeIndex(0) != 0 {
-		t.Error("Expected current load at 0 to be 0, got", sp.CurrentSpikeIndex(0))
+	if sp.currentSpikeIndex(0) != 0 {
+		t.Error("Expected current load at 0 to be 0, got", sp.currentSpikeIndex(0))
 	}
-	if sp.CurrentSpikeIndex(0.05) != 0 {
-		t.Error("Expected current load at 0.05 to be 0, got", sp.CurrentSpikeIndex(0.05))
+	if sp.currentSpikeIndex(0.05) != 0 {
+		t.Error("Expected current load at 0.05 to be 0, got", sp.currentSpikeIndex(0.05))
 	}
-	if sp.CurrentSpikeIndex(0.1) != 1 {
-		t.Error("Expected current load at 0.1 to be 1, got", sp.CurrentSpikeIndex(0.1))
+	if sp.currentSpikeIndex(0.1) != 1 {
+		t.Error("Expected current load at 0.1 to be 1, got", sp.currentSpikeIndex(0.1))
 	}
-	if sp.CurrentSpikeIndex(0.15) != 1 {
-		t.Error("Expected current load at 0.15 to be 1, got", sp.CurrentSpikeIndex(0.15))
+	if sp.currentSpikeIndex(0.15) != 1 {
+		t.Error("Expected current load at 0.15 to be 1, got", sp.currentSpikeIndex(0.15))
 	}
-	if sp.CurrentSpikeIndex(0.2) != 2 {
-		t.Error("Expected current load at 0.2 to be 2, got", sp.CurrentSpikeIndex(0.2))
+	if sp.currentSpikeIndex(0.2) != 2 {
+		t.Error("Expected current load at 0.2 to be 2, got", sp.currentSpikeIndex(0.2))
 	}
-	if sp.CurrentSpikeIndex(0.5) != 2 {
-		t.Error("Expected current load at 0.5 to be 2, got", sp.CurrentSpikeIndex(0.5))
+	if sp.currentSpikeIndex(0.5) != 2 {
+		t.Error("Expected current load at 0.5 to be 2, got", sp.currentSpikeIndex(0.5))
 	}
 }

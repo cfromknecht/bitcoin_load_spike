@@ -5,6 +5,88 @@ import (
 	"math"
 )
 
+/**
+ * Stores the `cumulativePlot` for each spike in a `SpikeProfile` and the file
+ * prefix for the output files.
+ */
+type CumulativeLogger struct {
+	plots      []*cumulativePlot
+	filePrefix string
+}
+
+/**
+ * @return - The specified prefix for the output file.
+ */
+func (cl CumulativeLogger) FilePrefix() string {
+	return cl.filePrefix
+}
+
+/**
+ * @return - The file extension for `CumulativeLogger` output
+ */
+func (cl CumulativeLogger) FileExtension() string {
+	return "cl-dat"
+}
+
+/**
+ * Records the log of a `txn`s confirmation time into the appropriate bucket.
+ *
+ * @param blockTimestamp - The timestamp of the block that recorded `txn`
+ * @param t - The `txn` that was recorded
+ *
+ */
+func (cl *CumulativeLogger) Log(blockTimestamp float64, t txn) {
+	// Caclulate the log of a txn's confirmation time
+	age := blockTimestamp - t.time
+	logAge := math.Log10(age)
+	logAgeBucket := float64(NUM_BUCKETS_PER_ORDER) * logAge
+
+	b := int64(math.Ceil(logAgeBucket))
+	// Offset for negtive log values
+	b += NEGATIVE_ORDERS * NUM_BUCKETS_PER_ORDER
+
+	if b < 0 {
+		b = 0
+	}
+	if b >= int64(len(cl.plots[t.index].buckets)) {
+		// diff := b - int64(len(cl.plots[t.index].buckets) - 1)
+
+		// bucketsExtension := make([]int64, diff)
+		// cl.plots[t.index].buckets = append(cl.plots[t.index].buckets, bucketsExtension...)
+		panic("Not enough buckets to record txn confirmation time.")
+	}
+
+	cl.plots[t.index].incrementBucket(b)
+}
+
+/**
+ * Accumulates the file contents for all `cumulativePlot`s.
+ *
+ * @return - The file contents for each `Spike` in the `SpikeProfile`
+ */
+func (cl *CumulativeLogger) Outputs() (outputs []string) {
+	for i, plot := range cl.plots {
+		fmt.Println("[CumulativePlot]: generating cumulative plot data for spike", i)
+		outputs = append(outputs, plot.output())
+	}
+	return
+}
+
+/**
+ * Clears the logging state.
+ */
+func (cl *CumulativeLogger) Reset() {
+	for i := range cl.plots {
+		cl.plots[i] = newCumulativePlot()
+	}
+}
+
+/**
+ * Stores the buckets as an array of counters.  The number in each bucket
+ * represents the number of txn's whose confirmation times fall within that bucket.
+ * Also maintains a count of the total `txn`s recorded and the range of buckets
+ * in use.
+ */
 type cumulativePlot struct {
 	buckets        []int64
 	smallestBucket int64
@@ -12,6 +94,11 @@ type cumulativePlot struct {
 	txnCount       int64
 }
 
+/**
+ * Initializes a new `cumulativePlot`
+ *
+ * @return - An empty `cumulativePlot`
+ */
 func newCumulativePlot() *cumulativePlot {
 	return &cumulativePlot{
 		buckets:        make([]int64, NUM_BUCKETS),
@@ -21,6 +108,9 @@ func newCumulativePlot() *cumulativePlot {
 	}
 }
 
+/**
+ * Increments the bucket and total txn count. Also adjusts the range of used buckets.
+ */
 func (cp *cumulativePlot) incrementBucket(i int64) {
 	cp.buckets[i]++
 	cp.txnCount++
@@ -33,6 +123,11 @@ func (cp *cumulativePlot) incrementBucket(i int64) {
 	}
 }
 
+/**
+ *  Returns a string representation of the plot to be written to a file.
+ *
+ * @return - The file contents for this spike's plot.
+ */
 func (cp *cumulativePlot) output() (fileContents string) {
 	cumulativeTotal := float64(0.0)
 	txnCountFloat := float64(cp.txnCount)
@@ -48,49 +143,4 @@ func (cp *cumulativePlot) output() (fileContents string) {
 			cumulativeTotal/txnCountFloat)
 	}
 	return
-}
-
-type CumulativeLogger struct {
-	plots      []*cumulativePlot
-	filePrefix string
-}
-
-func (cl CumulativeLogger) FilePrefix() string {
-	return cl.filePrefix
-}
-
-func (cl CumulativeLogger) FileExtension() string {
-	return "cl-dat"
-}
-
-func (cl *CumulativeLogger) Log(blockTimestamp, txnTimestamp float64, spikeNumber int) {
-	age := blockTimestamp - txnTimestamp
-	logAge := math.Log10(age)
-	logAgeBucket := float64(NUM_BUCKETS_PER_ORDER) * logAge
-
-	b := int64(math.Ceil(logAgeBucket))
-	b += NEGATIVE_ORDERS * NUM_BUCKETS_PER_ORDER
-
-	if b < 0 {
-		b = 0
-	}
-	if b >= NUM_BUCKETS {
-		panic("Not enough buckets to record txn confirmation time.")
-	}
-
-	cl.plots[spikeNumber].incrementBucket(b)
-}
-
-func (cl *CumulativeLogger) Outputs() (outputs []string) {
-	for i, plot := range cl.plots {
-		fmt.Println("[CumulativePlot]: generating cumulative plot data for spike", i)
-		outputs = append(outputs, plot.output())
-	}
-	return
-}
-
-func (cl *CumulativeLogger) Reset() {
-	for i := range cl.plots {
-		cl.plots[i] = newCumulativePlot()
-	}
 }
