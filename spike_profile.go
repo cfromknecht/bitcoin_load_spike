@@ -3,6 +3,25 @@ package bitcoin_load_spike
 import "fmt"
 
 /**
+ * `Spike`
+ *
+ * Defines the load at a given percentage
+ */
+type Spike struct {
+	Percent float64
+	Load    float64
+}
+
+/**
+ * Returns a string representation of a `Spike`
+ *
+ * @return - "<percent>:<load>"
+ */
+func (s Spike) String() string {
+	return fmt.Sprintf("%.4f:%.4f", s.Percent, s.Load)
+}
+
+/**
  * `SpikeProfile`
  *
  * Defines the load at any percentage of the simulation's completion by
@@ -21,25 +40,6 @@ import "fmt"
  */
 type SpikeProfile struct {
 	Spikes []Spike
-}
-
-/**
- * `Spike`
- *
- * Defines the load at a given percentage
- */
-type Spike struct {
-	Percent float64
-	Load    float64
-}
-
-/**
- * Returns a string representation of a `Spike`
- *
- * @return - "<percent>:<load>"
- */
-func (s Spike) String() string {
-	return fmt.Sprintf("%.4f:%.4f", s.Percent, s.Load)
 }
 
 /**

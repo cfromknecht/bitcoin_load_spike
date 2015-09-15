@@ -7,8 +7,6 @@ import (
 )
 
 func parseFlags() (load, blockSize *float64, numBlocks, numIterations *int64) {
-	runtime.GOMAXPROCS(2)
-
 	load = flag.Float64("load", 0.0, "load percentage")
 	blockSize = flag.Float64("bs", bls.DEFAULT_BLOCK_SIZE, "block size")
 	numBlocks = flag.Int64("nb", bls.DEFAULT_NUM_BLOCKS, "number of blocks")
@@ -19,6 +17,8 @@ func parseFlags() (load, blockSize *float64, numBlocks, numIterations *int64) {
 }
 
 func main() {
+	runtime.GOMAXPROCS(2)
+
 	load, bs, nb, ns := parseFlags()
 
 	var sp *bls.SpikeProfile
@@ -32,7 +32,7 @@ func main() {
 		sp = &bls.SpikeProfile{
 			[]bls.Spike{
 				bls.Spike{0.0, 0.1},
-				bls.Spike{0.33, 1.0},
+				bls.Spike{0.33, 10.0},
 				bls.Spike{0.67, 0.11},
 			},
 		}

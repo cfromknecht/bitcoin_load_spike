@@ -86,7 +86,7 @@ func (lss *LoadSpikeSimulation) Run() {
 	}
 	fmt.Println("|")
 
-	lss.OutputResults()
+	lss.outputResults()
 
 	// Reset loggers in case the simulation is reused
 	for _, logger := range lss.loggers {
@@ -173,6 +173,30 @@ func (lss *LoadSpikeSimulation) AddCumulativeLogger(prefix string) *LoadSpikeSim
 	lss.loggers = append(lss.loggers, cLogger)
 
 	return lss
+}
+
+
+/**
+ * Obtains the outputs from each logger and writes them to their specified file.
+ */
+func (lss *LoadSpikeSimulation) outputResults() {
+	// Create output for each logger
+	for _, logger := range lss.loggers {
+		// Create file prefix to dump results
+		filePrefix := logger.FilePrefix()
+
+		// Get each file contents and write to file
+		for i, fileContents := range logger.Outputs() {
+			// Create full filename
+			filename := filePrefix
+			filename += "-" + lss.spikeProfile.Spikes[i].String()
+			filename += fmt.Sprintf("-%d-%d", lss.numBlocks, lss.numIterations)
+			filename += "." + logger.FileExtension()
+			// Write file contents to filename
+			err := ioutil.WriteFile(filename, []byte(fileContents), 0644)
+			check(err)
+		}
+	}
 }
 
 /**
@@ -296,28 +320,6 @@ func (lss *LoadSpikeSimulation) logTxn(blockTimestamp float64, t txn, readyChan 
 	readyChan <- true
 }
 
-/**
- * Obtains the outputs from each logger and writes them to their specified file.
- */
-func (lss *LoadSpikeSimulation) OutputResults() {
-	// Create output for each logger
-	for _, logger := range lss.loggers {
-		// Create file prefix to dump results
-		filePrefix := logger.FilePrefix()
-
-		// Get each file contents and write to file
-		for i, fileContents := range logger.Outputs() {
-			// Create full filename
-			filename := filePrefix
-			filename += "-" + lss.spikeProfile.Spikes[i].String()
-			filename += fmt.Sprintf("-%d-%d", lss.numBlocks, lss.numIterations)
-			filename += "." + logger.FileExtension()
-			// Write file contents to filename
-			err := ioutil.WriteFile(filename, []byte(fileContents), 0644)
-			check(err)
-		}
-	}
-}
 
 /**
  * Prints progress bar `|=========(10)=========(20)======...===|`
