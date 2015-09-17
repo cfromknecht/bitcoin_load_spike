@@ -17,10 +17,12 @@ func parseFlags() (load, blockSize *float64, numBlocks, numIterations *int64) {
 }
 
 func main() {
+	// Default to two processes, this will increase after further optimizations to the `createTxns` method
 	runtime.GOMAXPROCS(2)
 
 	load, bs, nb, ns := parseFlags()
 
+	// Use constant `SpikeProfile` if `load` is set, otherwise use custom `SpikeProfile`
 	var sp *bls.SpikeProfile
 	if *load != 0.0 {
 		sp = &bls.SpikeProfile{
@@ -38,6 +40,7 @@ func main() {
 		}
 	}
 
+	// Run simulation with appropriate `SpikeProfile`
 	bls.NewLoadSpikeSimulation(*bs, *nb, *ns).
 		UseSpikeProfile(sp).
 		AddCumulativeLogger("data/load-spike").
